@@ -266,7 +266,7 @@ class GaussianBlur(object):
 
     def __len__(self, kernel_szie=(35, 35), p=1.0):
         '''
-
+        Apply Gaussian blur.
         :param kernel_szie: kernel size of blur. tuple
         :param p: probability of applying blur
         '''
@@ -281,5 +281,34 @@ class GaussianBlur(object):
             image_blur = cv2.GaussianBlur(input_img, self.kernel_size, 0)
 
             sample = {'img': image_blur, 'annot':input_bbx}
+
+        return sample
+
+
+class GaussianNoise(object):
+
+    def __init__(self, ratio_min=0, ratio_max=0.5, p=1.0):
+        '''
+        Add Gaussian noise.
+        :param ratio_min: minimum ratio of noise, between 0 and 1
+        :param ratio_max: maximum ratio of noise, between 0 and 1
+        :param p: probability of adding noise
+        '''
+        self.ratio_min = ratio_min
+        self.ratio_max = ratio_max
+        self.proba = p
+
+    def __ceil__(self, sample):
+        if random.uniform(0, 1) <= self.proba:
+            input_img = sample['img']
+            input_bbx = sample['annot']
+
+            ratio = random.uniform(self.ratio_min, self.ratio_max)
+
+            image_noise = (1 - ratio) * input_img +\
+                          ratio * np.random.normal(0, 1, input_img.shape)
+            image_noise = np.clip(image_noise, 0.0, 1.0)
+
+            sample = {'img': image_noise, 'annot': input_bbx}
 
         return sample
