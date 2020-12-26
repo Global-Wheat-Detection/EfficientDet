@@ -7,16 +7,17 @@ from pycocotools.coco import COCO
 
 
 class Mosaic(object):
-    def __init__(self, image_ids, p=1):
+    def __init__(self, image_ids, annot_file, image_folder, p=1):
         '''
         Apply Mosaic augmentation to passed in image.
         :param image_ids: ids of training images
+        :param annot_file: file path of annotation file
+        :param image_folder: folder path of images
         :param p: probability of applying mosaic
         '''
         self.proba = p
-        self.annot_file = 'global-wheat-detection/train.json'
-        self.image_folder = 'global-wheat-detection/train/'
-        self.annot = COCO(self.annot_file)
+        self.image_folder = image_folder
+        self.annot = COCO(annot_file)
         self.image_ids = image_ids
 
     def get_cut(self, image, bboxs, cutx, cuty):
@@ -83,8 +84,8 @@ class Mosaic(object):
             input_bbx = sample['annot']
 
             # prepare the other 3 images
-            random.shuffle(self.image_ids)
-            mosaic_ids = [self.image_ids[i] for i in range(3)]
+            choice = np.random.choice(len(self.image_ids), 3, replace=False)
+            mosaic_ids = [self.image_ids[i] for i in choice]
             mosaic_imgs = [input_img]
             mosaic_bboxs = [input_bbx]
 
@@ -214,16 +215,17 @@ class Mosaic(object):
 
 
 class Mixup(object):
-    def __init__(self, image_ids, p=1.0):
+    def __init__(self, image_ids, annot_file, image_folder, p=1.0):
         '''
         Mix passed in image with another.
         :param image_ids: ids of training images
+        :param annot_file: file path of annotation file
+        :param image_folder: folder path of images
         :param p: probability of applying mixup
         '''
         self.proba = p
-        self.annot_file = 'global-wheat-detection/train.json'
-        self.image_folder = 'global-wheat-detection/train/'
-        self.annot = COCO(self.annot_file)
+        self.image_folder = image_folder
+        self.annot = COCO(annot_file)
         self.image_ids = image_ids
 
     def __call__(self, sample):
@@ -232,8 +234,8 @@ class Mixup(object):
             input_bbx = sample['annot']
 
             # prepare the other image
-            random.shuffle(self.image_ids)
-            mixup_id = self.image_ids[0]
+            choice = np.random.choice(len(self.image_ids), 1, replace=False)
+            mixup_id = self.image_ids[choice]
             img_info = self.annot.loadImgs(mixup_id)
 
             # image
