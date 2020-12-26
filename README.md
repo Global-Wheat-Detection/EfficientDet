@@ -1,6 +1,3 @@
-**[Important]** Files denoted with '_m' postfix will replace their counterpart after this train session ends,including **train_m.py**, **global_wheat_m.yml**, **dataset_m.py**
-
-
 ## Reproducing Processes
 
 1. Install requirements
