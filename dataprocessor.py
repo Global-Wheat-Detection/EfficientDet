@@ -7,8 +7,12 @@ from pycocotools.coco import COCO
 
 
 class Mosaic(object):
-    '''Apply Mosaic augmentation to passed in image.'''
     def __init__(self, image_ids, p=1):
+        '''
+        Apply Mosaic augmentation to passed in image.
+        :param image_ids: ids of training images
+        :param p: probability of applying mosaic
+        '''
         self.proba = p
         self.annot_file = 'global-wheat-detection/train.json'
         self.image_folder = 'global-wheat-detection/train/'
@@ -210,8 +214,12 @@ class Mosaic(object):
 
 
 class Mixup(object):
-    '''Mix passed in image with another.'''
-    def __init__(self, image_ids, p=1):
+    def __init__(self, image_ids, p=1.0):
+        '''
+        Mix passed in image with another.
+        :param image_ids: ids of training images
+        :param p: probability of applying mixup
+        '''
         self.proba = p
         self.annot_file = 'global-wheat-detection/train.json'
         self.image_folder = 'global-wheat-detection/train/'
@@ -250,5 +258,28 @@ class Mixup(object):
             mixup_annotation = np.concatenate((input_bbx, add_annotation), axis=0)
 
             sample = {'img':mixup_img, 'annot':mixup_annotation}
+
+        return sample
+
+
+class GaussianBlur(object):
+
+    def __len__(self, kernel_szie=(35, 35), p=1.0):
+        '''
+
+        :param kernel_szie: kernel size of blur. tuple
+        :param p: probability of applying blur
+        '''
+        self.kernel_size = kernel_szie
+        self.proba = p
+
+    def __ceil__(self, sample):
+        if random.uniform(0, 1) <= self.proba:
+            input_img = sample['img']
+            input_bbx = sample['annot']
+
+            image_blur = cv2.GaussianBlur(input_img, self.kernel_size, 0)
+
+            sample = {'img': image_blur, 'annot':input_bbx}
 
         return sample
