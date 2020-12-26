@@ -7,7 +7,7 @@ from pycocotools.coco import COCO
 
 
 class Mosaic(object):
-    def __init__(self, image_ids, annot_file, image_folder, transform=None, p=1):
+    def __init__(self, annot_file, image_folder, image_ids=None, transform=None, p=1):
         '''
         Apply Mosaic augmentation to passed in image.
         :param image_ids: ids of training images
@@ -19,7 +19,10 @@ class Mosaic(object):
         self.proba = p
         self.image_folder = image_folder
         self.annot = COCO(annot_file)
-        self.image_ids = image_ids
+        if image_ids:
+            self.image_ids = image_ids
+        else:
+            self.image_ids = list(self.annot.imgs.keys())
         self.transform = transform
 
     def get_cut(self, image, bboxs, cutx, cuty):
@@ -327,5 +330,61 @@ class GaussianNoise(object):
             image_noise = np.clip(image_noise, 0.0, 1.0)
 
             sample = {'img': image_noise, 'annot': input_bbx}
+
+        return sample
+
+
+class RandomRotate(object):
+
+    def __init__(self, p=1.0):
+        '''
+        Rotate the image 90 degrees clockwise or counterclockwise, both 50%.
+        :param p: probability to rotate image
+        '''
+        self.proba = p
+
+    def rotate_img(self, image, angle, center=None, scale=1.0):
+        (h, w) = image.shape[:2]
+
+        if center is None:
+            center = (w / 2, h / 2)
+
+        M = cv2.getRotationMatrix2D(center, angle, scale)
+        rotated = cv2.warpAffine(image, M, (w, h))
+
+        return rotated
+
+    def __call__(self, sample):
+        if random.uniform(0, 1) <= self.proba:
+            input_img = sample['img']
+            input_bbx = sample['annot']
+
+            counterclockwise = np.random.randint(2)
+
+            # image
+            if counterclockwise:
+                rotated_img = self.rotate_img(input_img, 90)
+            else:
+                rotated_img = self.rotate_img(input_img, -90)
+
+            # bbox
+            rotated_bboxs = np.zeros((0, 5))
+
+            width = input_img.shape[1]
+            height = input_img.shape[0]
+            for bbox in input_bbx:
+                rotated_bbox = np.zeros((1, 5))
+                if counterclockwise:
+                    rotated_bbox[0, 0] = bbox[1]
+                    rotated_bbox[0, 1] = width - bbox[0] - bbox[2]
+                else:
+                    rotated_bbox[0, 0] = height - bbox[1] - bbox[3]
+                    rotated_bbox[0, 1] = bbox[0]
+                rotated_bbox[0, 2] = bbox[3]
+                rotated_bbox[0, 3] = bbox[2]
+                rotated_bbox[0, 4] = 0
+                rotated_bboxs = np.concatenate((rotated_bboxs, rotated_bbox), axis=0)
+
+            sample = {'img': rotated_img, 'annot': rotated_bboxs}
 
         return sample
