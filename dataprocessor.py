@@ -7,18 +7,20 @@ from pycocotools.coco import COCO
 
 
 class Mosaic(object):
-    def __init__(self, image_ids, annot_file, image_folder, p=1):
+    def __init__(self, image_ids, annot_file, image_folder, transform=None, p=1):
         '''
         Apply Mosaic augmentation to passed in image.
         :param image_ids: ids of training images
         :param annot_file: file path of annotation file
         :param image_folder: folder path of images
+        :param transform: transform to apply to other images
         :param p: probability of applying mosaic
         '''
         self.proba = p
         self.image_folder = image_folder
         self.annot = COCO(annot_file)
         self.image_ids = image_ids
+        self.transform = transform
 
     def get_cut(self, image, bboxs, cutx, cuty):
         old_height = image.shape[0]
@@ -112,6 +114,12 @@ class Mosaic(object):
                     processed_annot = np.concatenate((processed_annot, bbox), axis=0)
 
                 mosaic_bboxs.append(processed_annot)
+
+            if self.transform:
+                for i in [1, 2, 3]:
+                    sample = self.transform({'img': mosaic_imgs[i], 'annot': mosaic_bboxs[i]})
+                    mosaic_imgs[i] = sample['img']
+                    mosaic_bboxs[i] = sample['annot']
 
             # do augmentation
             x_length = input_img.shape[1]
@@ -215,18 +223,20 @@ class Mosaic(object):
 
 
 class Mixup(object):
-    def __init__(self, image_ids, annot_file, image_folder, p=1.0):
+    def __init__(self, image_ids, annot_file, image_folder, transform=None, p=1.0):
         '''
         Mix passed in image with another.
         :param image_ids: ids of training images
         :param annot_file: file path of annotation file
         :param image_folder: folder path of images
+        :param transform: transform to apply to the other image
         :param p: probability of applying mixup
         '''
         self.proba = p
         self.image_folder = image_folder
         self.annot = COCO(annot_file)
         self.image_ids = image_ids
+        self.transform = transform
 
     def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
@@ -253,6 +263,11 @@ class Mixup(object):
                 bbox.append(0)  # class 0
                 bbox = np.expand_dims(np.array(bbox), axis=0)
                 add_annotation = np.concatenate((add_annotation, bbox), axis=0)
+
+            if self.transform:
+                sample = self.transform({'img': mixup_img, 'annot': add_annotation})
+                mixup_img = sample['img']
+                add_annotation = sample['annot']
 
             # do mixup augmentation
             mixup_ratio = random.uniform(0.35, 0.65)
