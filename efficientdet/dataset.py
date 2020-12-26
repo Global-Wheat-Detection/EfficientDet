@@ -1,63 +1,86 @@
-# Modified
-
-import re
 import os
-import cv2
 import torch
 import numpy as np
-from torch.utils.data import Dataset
+
+from torch.utils.data import Dataset, DataLoader
+from pycocotools.coco import COCO
+import cv2
 
 
-class WheatDataset(Dataset):
-    def __init__(self, root_dir, anno_dir, image_ids, transform=None):
+class CocoDataset(Dataset):
+    def __init__(self, root_dir, image_ids, set='train', transform=None):
 
         self.root_dir = root_dir
-        self.image_ids = image_ids
-        self.annots = self.read_csv(anno_dir)
+        self.set_name = set
         self.transform = transform
 
-    def read_csv(self, anno_dir):
-        pattern = '(\w+).*\"\[([.\d]+), ([.\d]+), ' \
-                '([.\d]+), ([.\d]+)\]\".*'
-        annots = {}
-        with open(anno_dir, 'r') as f:
-            next(f)
-            for line in f:
-                m = re.search(pattern, line)
-                image_id = m.group(1)
-                bbox = [float(x) for x in m.group(2, 3, 4, 5)]
-                bbox.append(0)  # class label = 0
-                if image_id in self.image_ids:
-                    if image_id not in annots:
-                        annots[image_id] = [np.array(bbox)]
-                    else:
-                        annots[image_id].append(np.array(bbox))
-        for id in self.image_ids:
-            if id in annots:
-                annots[id] = np.stack(annots[id])
-            else:
-                annots[id] = np.zeros((0, 5))
+        self.coco = COCO(os.path.join(self.root_dir, 'annotations', self.set_name + '.json'))
+        self.image_ids = image_ids
 
-        return annots
+        self.load_classes()
+
+    def load_classes(self):
+
+        # load class names (name -> label)
+        categories = self.coco.loadCats(self.coco.getCatIds())
+        categories.sort(key=lambda x: x['id'])
+
+        self.classes = {}
+        for c in categories:
+            self.classes[c['name']] = len(self.classes)
+
+        # also load the reverse (label -> name)
+        self.labels = {}
+        for key, value in self.classes.items():
+            self.labels[value] = key
 
     def __len__(self):
         return len(self.image_ids)
 
     def __getitem__(self, idx):
 
-        img = self.load_image(self.image_ids[idx])
-        annot = self.annots[self.image_ids[idx]]
+        img = self.load_image(idx)
+        annot = self.load_annotations(idx)
         sample = {'img': img, 'annot': annot}
         if self.transform:
             sample = self.transform(sample)
         return sample
 
-    def load_image(self, image_id):
-        path = os.path.join(self.root_dir, image_id + '.jpg')
+    def load_image(self, image_index):
+        image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
+        path = os.path.join(self.root_dir, self.set_name, image_info['file_name'])
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         return img.astype(np.float32) / 255.
+
+    def load_annotations(self, image_index):
+        # get ground truth annotations
+        annotations_ids = self.coco.getAnnIds(imgIds=self.image_ids[image_index], iscrowd=False)
+        annotations = np.zeros((0, 5))
+
+        # some images appear to miss annotations
+        if len(annotations_ids) == 0:
+            return annotations
+
+        # parse annotations
+        coco_annotations = self.coco.loadAnns(annotations_ids)
+        for idx, a in enumerate(coco_annotations):
+
+            # some annotations have basically no width / height, skip them
+            if a['bbox'][2] < 1 or a['bbox'][3] < 1:
+                continue
+
+            annotation = np.zeros((1, 5))
+            annotation[0, :4] = a['bbox']
+            annotation[0, 4] = a['category_id']
+            annotations = np.append(annotations, annotation, axis=0)
+
+        # transform from [x, y, w, h] to [x1, y1, x2, y2]
+        annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
+        annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
+
+        return annotations
 
 
 def collater(data):

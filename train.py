@@ -16,9 +16,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm.autonotebook import tqdm
+from pycocotools.coco import COCO
 
 from backbone import EfficientDetBackbone
-from efficientdet.dataset import WheatDataset, Resizer, Normalizer, Augmenter, collater
+from efficientdet.dataset import CocoDataset, Resizer, Normalizer, Augmenter, collater
 from efficientdet.loss import FocalLoss
 from utils.sync_batchnorm import patch_replication_callback
 from utils.utils import replace_w_sync_bn, CustomDataParallel, get_last_weights, init_weights, boolean_string
@@ -83,6 +84,43 @@ class ModelWithLoss(nn.Module):
         return cls_loss, reg_loss
 
 
+def train_val_split(opt, params):
+    if os.path.isfile(os.path.join(opt.saved_path, 'split_ids.txt')):
+        while True:
+            print('Split list is found. Resume? (y/n) ', end='')
+            reply = input()
+            if reply == 'y':
+                break
+            elif reply == 'n':
+                return [], []
+            else:
+                print('Not recognized, try again.')
+        with open(os.path.join(opt.saved_path, 'split_ids.txt'), 'r') as f:
+            next(f)
+            train_ids = [int(id) for id in f.readline().split(' ')[:-1]]
+            next(f)
+            val_ids = [int(id) for id in f.readline().split(' ')[:-1]]
+    else:
+        coco = COCO(os.path.join(opt.data_path,
+                                 params.project_name,
+                                 'annotations',
+                                 params.train_set + '.json'))
+        image_ids = coco.getImgIds()
+        random.shuffle(image_ids)
+        train_ids = image_ids[:int(len(image_ids)*opt.train_split)]
+        val_ids = image_ids[int(len(image_ids)*opt.train_split):]
+        with open(os.path.join(opt.saved_path, 'split_ids.txt'), 'w') as f:
+            f.write('train_ids\n')
+            for id in train_ids:
+                f.write(str(id) + ' ')
+            f.write('\nval_ids\n')
+            for id in val_ids:
+                f.write(str(id) + ' ')
+            f.write('\n')
+
+    return train_ids, val_ids
+
+
 def train(opt):
     params = Params(f'projects/{opt.project}.yml')
 
@@ -113,57 +151,28 @@ def train(opt):
 
     # input_sizes = [512, 640, 768, 896, 1024, 1280, 1280, 1536, 1536]
     input_sizes = {opt.compound_coef: 896}
-    # train val split
-    root = os.path.join(opt.data_path, params.project_name)
-    if os.path.isfile(os.path.join(opt.saved_path, 'split_ids')):
-        while True:
-            print('Split list is found. Resume? (y/n) ', end='')
-            reply = input()
-            if reply == 'y':
-                break
-            elif reply == 'n':
-                return
-            else:
-                print('Not recognized, try again.')
-        with open(os.path.join(opt.saved_path, 'split_ids'), 'r') as f:
-            next(f)
-            train_ids = f.readline().split(' ')[:-1]
-            next(f)
-            val_ids = f.readline().split(' ')[:-1]
-    else:
-        ids = []
-        for name in os.listdir(os.path.join(root, 'train')):
-            if name.endswith('.jpg'):
-                ids.append(name.split('.')[0])
-        random.shuffle(ids)
-        train_ids = ids[:int(len(ids)*opt.train_split)]
-        val_ids = ids[int(len(ids)*opt.train_split):]
-        with open(os.path.join(opt.saved_path, 'split_ids'), 'w') as f:
-            f.write('train_ids\n')
-            for id in train_ids:
-                f.write(id + ' ')
-            f.write('\nval_ids\n')
-            for id in val_ids:
-                f.write(id + ' ')
-            f.write('\n')
 
-    training_set = WheatDataset(root_dir=os.path.join(root, 'train'),
-                                anno_dir=os.path.join(root, 'train.csv'),
-                                image_ids=train_ids,
-                                transform=transforms.Compose([
-                                                     Normalizer(mean=params.mean, std=params.std),
-                                                     Augmenter(),
-                                                     Resizer(input_sizes[opt.compound_coef])
-                                                     ]))
+    train_ids, val_ids = train_val_split(opt, params)
+    if len(train_ids) == 0 or len(val_ids) == 0:
+        return
+
+    training_set = CocoDataset(root_dir=os.path.join(opt.data_path, params.project_name),
+                               image_ids=train_ids,
+                               set=params.train_set,
+                               transform=transforms.Compose([
+                                                    Normalizer(mean=params.mean, std=params.std),
+                                                    Augmenter(),
+                                                    Resizer(input_sizes[opt.compound_coef])
+                                                    ]))
     training_generator = DataLoader(training_set, **training_params)
 
-    val_set = WheatDataset(root_dir=os.path.join(root, 'train'),
-                           anno_dir=os.path.join(root, 'train.csv'),
-                           image_ids=val_ids,
-                           transform=transforms.Compose([
-                                                Normalizer(mean=params.mean, std=params.std),
-                                                Resizer(input_sizes[opt.compound_coef])
-                                                ]))
+    val_set = CocoDataset(root_dir=os.path.join(opt.data_path, params.project_name),
+                          image_ids=val_ids,
+                          set=params.train_set,
+                          transform=transforms.Compose([
+                                               Normalizer(mean=params.mean, std=params.std),
+                                               Resizer(input_sizes[opt.compound_coef])
+                                               ]))
     val_generator = DataLoader(val_set, **val_params)
 
     model = EfficientDetBackbone(num_classes=len(params.obj_list), compound_coef=opt.compound_coef,
