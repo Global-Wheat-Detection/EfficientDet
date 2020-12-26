@@ -2,16 +2,18 @@ import pandas as pd
 import cv2
 import numpy as np
 import random
+import json
+from pycocotools.coco import COCO
 
 
 class Mosaic(object):
     '''Apply Mosaic augmentation to passed in image.'''
-    def __init__(self, p=1):
+    def __init__(self, image_ids, p=1):
         self.proba = p
-        self.annot_file = 'global-wheat-detection/train.csv'
+        self.annot_file = 'global-wheat-detection/train.json'
         self.image_folder = 'global-wheat-detection/train/'
-        self.annot = pd.read_csv(self.annot_file)
-        self.image_ids = np.unique(self.annot['image_id'].to_numpy())
+        self.annot = COCO(self.annot_file)
+        self.image_ids = image_ids
 
     def get_cut(self, image, bboxs, cutx, cuty):
         old_height = image.shape[0]
@@ -77,29 +79,29 @@ class Mosaic(object):
             input_bbx = sample['annot']
 
             # prepare the other 3 images
-            np.random.shuffle(self.image_ids)
+            random.shuffle(self.image_ids)
             mosaic_ids = [self.image_ids[i] for i in range(3)]
             mosaic_imgs = [input_img]
             mosaic_bboxs = [input_bbx]
 
             for mosaic_id in mosaic_ids:
+                img_info = self.annot.loadImgs(mosaic_id)
 
                 # image
-                path = self.image_folder + mosaic_id + '.jpg'
+                path = self.image_folder + img_info[0]['file_name']
                 image = cv2.imread(path)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 image = image.astype(np.float32) / 255
                 mosaic_imgs.append(image)
 
                 # bbox
-                raw_annot = self.annot.loc[self.annot['image_id'] == id]
+                annids = self.annot.getAnnIds(imgIds=mosaic_id)
+                anns = self.annot.loadAnns(annids)
+
                 processed_annot = np.zeros((0, 5))
 
-                for i in range(len(raw_annot.index)):
-                    bbox = raw_annot.iloc[i, :]['bbox']
-                    bbox = bbox.strip('[').strip(']').split(', ')
-                    for i, ele in enumerate(bbox):  # [left, top, width, height]
-                        bbox[i] = float(ele)
+                for instance in anns:
+                    bbox = instance['bbox']
                     bbox.append(0)  # class 0
                     bbox = np.expand_dims(np.array(bbox), axis=0)
                     processed_annot = np.concatenate((processed_annot, bbox), axis=0)
@@ -209,12 +211,12 @@ class Mosaic(object):
 
 class Mixup(object):
     '''Mix passed in image with another.'''
-    def __init__(self, p=1):
+    def __init__(self, image_ids, p=1):
         self.proba = p
-        self.annot_file = 'global-wheat-detection/train.csv'
+        self.annot_file = 'global-wheat-detection/train.json'
         self.image_folder = 'global-wheat-detection/train/'
-        self.annot = pd.read_csv(self.annot_file)
-        self.image_ids = np.unique(self.annot['image_id'].to_numpy())
+        self.annot = COCO(self.annot_file)
+        self.image_ids = image_ids
 
     def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
@@ -222,21 +224,23 @@ class Mixup(object):
             input_bbx = sample['annot']
 
             # prepare the other image
-            np.random.shuffle(self.image_ids)
+            random.shuffle(self.image_ids)
             mixup_id = self.image_ids[0]
+            img_info = self.annot.loadImgs(mixup_id)
 
-            mixup_img = cv2.imread(self.image_folder + mixup_id + '.jpg')
+            # image
+            mixup_img = cv2.imread(self.image_folder + img_info[0]['file_name'])
             mixup_img = cv2.cvtColor(mixup_img, cv2.COLOR_BGR2RGB)
             mixup_img = mixup_img.astype(np.float32) / 255
             add_annotation = np.zeros((0, 5))
 
-            annot_input = self.annot.loc[self.annot['image_id'] == mixup_id]
-            for i in range(len(annot_input.index)):
-                bbox = annot_input.iloc[i, :]['bbox']
-                bbox = bbox.strip('[').strip(']').split(', ')
-                for i, ele in enumerate(bbox):  # [left, top, width, height]
-                    bbox[i] = float(ele)
-                bbox.append(0)
+            # bbox
+            annids = self.annot.getAnnIds(imgIds=mixup_id)
+            anns = self.annot.loadAnns(annids)
+
+            for instance in anns:
+                bbox = instance['bbox']
+                bbox.append(0)  # class 0
                 bbox = np.expand_dims(np.array(bbox), axis=0)
                 add_annotation = np.concatenate((add_annotation, bbox), axis=0)
 
