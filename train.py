@@ -36,7 +36,7 @@ def get_args():
     parser = argparse.ArgumentParser('Yet Another EfficientDet Pytorch: SOTA object detection network - Zylo117')
     parser.add_argument('-p', '--project', type=str, default='global_wheat', help='project file that contains parameters')
     parser.add_argument('-c', '--compound_coef', type=int, default=0, help='coefficients of efficientdet')
-    parser.add_argument('--train_split', type=float, default=0.7, help='proportion of train to all')
+    parser.add_argument('--train_split', type=float, default=0.8, help='proportion of train to all')
     parser.add_argument('-n', '--num_workers', type=int, default=12, help='num_workers of dataloader')
     parser.add_argument('--batch_size', type=int, default=12, help='The number of images per batch among all devices')
     parser.add_argument('--head_only', type=boolean_string, default=False,
@@ -112,41 +112,58 @@ def train(opt):
                   'num_workers': opt.num_workers}
 
     # input_sizes = [512, 640, 768, 896, 1024, 1280, 1280, 1536, 1536]
-    input_sizes = {opt.compound_coef: 768}
+    input_sizes = {opt.compound_coef: 896}
     # train val split
     root = os.path.join(opt.data_path, params.project_name)
-    ids = []
-    for name in os.listdir(os.path.join(root, 'train')):
-        if name.endswith('.jpg'):
-            ids.append(name.split('.')[0])
-    random.shuffle(ids)
-    train_ids = ids[:int(len(ids)*opt.train_split)]
-    val_ids = ids[int(len(ids)*opt.train_split):]
-    with open(os.path.join(opt.saved_path, 'split_ids'), 'a') as f:
-        f.write('train_ids\n')
-        for id in train_ids:
-            f.write(id + ' ')
-        f.write('\n\nval_ids\n')
-        for id in val_ids:
-            f.write(id + ' ')
-        f.write('\n\n')
+    if os.path.isfile(os.path.join(opt.saved_path, 'split_ids')):
+        while True:
+            print('Split list is found. Resume? (y/n) ', end='')
+            reply = input()
+            if reply == 'y':
+                break
+            elif reply == 'n':
+                return
+            else:
+                print('Not recognized, try again.')
+        with open(os.path.join(opt.saved_path, 'split_ids'), 'r') as f:
+            next(f)
+            train_ids = f.readline().split(' ')[:-1]
+            next(f)
+            val_ids = f.readline().split(' ')[:-1]
+    else:
+        ids = []
+        for name in os.listdir(os.path.join(root, 'train')):
+            if name.endswith('.jpg'):
+                ids.append(name.split('.')[0])
+        random.shuffle(ids)
+        train_ids = ids[:int(len(ids)*opt.train_split)]
+        val_ids = ids[int(len(ids)*opt.train_split):]
+        with open(os.path.join(opt.saved_path, 'split_ids'), 'w') as f:
+            f.write('train_ids\n')
+            for id in train_ids:
+                f.write(id + ' ')
+            f.write('\nval_ids\n')
+            for id in val_ids:
+                f.write(id + ' ')
+            f.write('\n')
 
     training_set = WheatDataset(root_dir=os.path.join(root, 'train'),
                                 anno_dir=os.path.join(root, 'train.csv'),
                                 image_ids=train_ids,
-                                transform=transforms.Compose([Normalizer(mean=params.mean, std=params.std),
-                                                              Augmenter(),
-                                                              Resizer(input_sizes[opt.compound_coef])
-                                                              ]))
+                                transform=transforms.Compose([
+                                                     Normalizer(mean=params.mean, std=params.std),
+                                                     Augmenter(),
+                                                     Resizer(input_sizes[opt.compound_coef])
+                                                     ]))
     training_generator = DataLoader(training_set, **training_params)
 
     val_set = WheatDataset(root_dir=os.path.join(root, 'train'),
                            anno_dir=os.path.join(root, 'train.csv'),
-                           image_ids=train_ids,
-                           transform=transforms.Compose([Normalizer(mean=params.mean, std=params.std),
-                                                         Augmenter(),
-                                                         Resizer(input_sizes[opt.compound_coef])
-                                                        ]))
+                           image_ids=val_ids,
+                           transform=transforms.Compose([
+                                                Normalizer(mean=params.mean, std=params.std),
+                                                Resizer(input_sizes[opt.compound_coef])
+                                                ]))
     val_generator = DataLoader(val_set, **val_params)
 
     model = EfficientDetBackbone(num_classes=len(params.obj_list), compound_coef=opt.compound_coef,
