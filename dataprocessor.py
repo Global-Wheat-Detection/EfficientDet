@@ -418,7 +418,9 @@ class HorizontalFlip(object):
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
 
@@ -443,7 +445,9 @@ class VerticalFlip(object):
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
 
@@ -472,7 +476,9 @@ class JpegCompression(object):
 
         out_img = transformed['image'] / 255
         out_bboxs = np.array(transformed['bboxes'])
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
 
@@ -498,7 +504,9 @@ class MedianBlur(object):
 
         out_img = transformed['image'] / 255
         out_bboxs = np.array(transformed['bboxes'])
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
 
@@ -532,7 +540,9 @@ class RandomCrop(object):
                 out_bboxs.pop(i)
 
         out_bboxs = np.array(out_bboxs)
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
 
@@ -557,6 +567,8 @@ class ToGray(object):
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
-        sample = {'img': out_img, 'annot': out_bboxs}
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
 
         return sample
