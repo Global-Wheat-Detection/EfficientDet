@@ -1,4 +1,4 @@
-import pandas as pd
+import os
 import cv2
 import numpy as np
 import random
@@ -98,7 +98,7 @@ class Mosaic(object):
                 img_info = self.annot.loadImgs(mosaic_id)
 
                 # image
-                path = self.image_folder + img_info[0]['file_name']
+                path = os.path.join(self.image_folder, img_info[0]['file_name'])
                 image = cv2.imread(path)
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 image = image.astype(np.float32) / 255
@@ -112,7 +112,8 @@ class Mosaic(object):
 
                 for instance in anns:
                     bbox = instance['bbox']
-                    bbox.append(0)  # class 0
+                    if len(bbox) == 4:
+                        bbox.append(0)  # class 0
                     bbox = np.expand_dims(np.array(bbox), axis=0)
                     processed_annot = np.concatenate((processed_annot, bbox), axis=0)
 
@@ -247,12 +248,12 @@ class Mixup(object):
             input_bbx = sample['annot']
 
             # prepare the other image
-            choice = np.random.choice(len(self.image_ids), 1, replace=False)
+            choice = int(np.random.choice(len(self.image_ids), 1, replace=False))
             mixup_id = self.image_ids[choice]
             img_info = self.annot.loadImgs(mixup_id)
 
             # image
-            mixup_img = cv2.imread(self.image_folder + img_info[0]['file_name'])
+            mixup_img = cv2.imread(os.path.join(self.image_folder, img_info[0]['file_name']))
             mixup_img = cv2.cvtColor(mixup_img, cv2.COLOR_BGR2RGB)
             mixup_img = mixup_img.astype(np.float32) / 255
             add_annotation = np.zeros((0, 5))
@@ -263,7 +264,8 @@ class Mixup(object):
 
             for instance in anns:
                 bbox = instance['bbox']
-                bbox.append(0)  # class 0
+                if len(bbox) == 4:
+                    bbox.append(0)  # class 0
                 bbox = np.expand_dims(np.array(bbox), axis=0)
                 add_annotation = np.concatenate((add_annotation, bbox), axis=0)
 
