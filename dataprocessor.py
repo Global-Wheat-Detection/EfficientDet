@@ -4,6 +4,7 @@ import numpy as np
 import random
 import json
 from pycocotools.coco import COCO
+import albumentations as A
 
 
 class Mosaic(object):
@@ -393,5 +394,169 @@ class RandomRotate(object):
 
             sample['img'] = rotated_img
             sample['annot'] = rotated_bboxs
+
+        return sample
+
+
+class HorizontalFlip(object):
+
+    def __init__(self, p=1.0):
+        '''
+        Flip image horizontally.
+        :param p: probability to flip
+        '''
+        self.transform = A.Compose(
+            [A.HorizontalFlip(p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image']
+        out_bboxs = np.array(transformed['bboxes'])
+        sample = {'img': out_img, 'annot': out_bboxs}
+
+        return sample
+
+
+class VerticalFlip(object):
+
+    def __init__(self, p=1.0):
+        '''
+        Flip image vertically.
+        :param p: probability to flip
+        '''
+        self.transform = A.Compose(
+            [A.VerticalFlip(p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image']
+        out_bboxs = np.array(transformed['bboxes'])
+        sample = {'img': out_img, 'annot': out_bboxs}
+
+        return sample
+
+
+class JpegCompression(object):
+
+    def __init__(self, quality_lower=99, quality_upper=100, p=1):
+        '''
+        Apply JEPG compression.
+        :param quality_lower: quality upper bound
+        :param quality_upper: quality lower bound
+        :param p: probability to apply transformation
+        '''
+        self.transform = A.Compose(
+            [A.JpegCompression(quality_lower=quality_lower,
+                               quality_upper=quality_upper, p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_img = (input_img * 255).astype(np.uint8)
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image'] / 255
+        out_bboxs = np.array(transformed['bboxes'])
+        sample = {'img': out_img, 'annot': out_bboxs}
+
+        return sample
+
+
+class MedianBlur(object):
+
+    def __init__(self, blur_limit=11, p=1):
+        '''
+        Apply MedianBlur blur.
+        :param p: probability to apply transformation
+        '''
+        self.transform = A.Compose(
+            [A.MedianBlur(blur_limit=blur_limit, p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_img = (input_img * 255).astype(np.uint8)
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image'] / 255
+        out_bboxs = np.array(transformed['bboxes'])
+        sample = {'img': out_img, 'annot': out_bboxs}
+
+        return sample
+
+
+class RandomCrop(object):
+
+    def __init__(self, height, width, p=1):
+        '''
+        Randomly crop from an image.
+        :param height: height of cropped image
+        :param width: width of cropped image
+        :param p: probability to apply transformation
+        '''
+        self.transform = A.Compose(
+            [A.RandomCrop(height, width, p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image']
+        out_bboxs = transformed['bboxes']
+
+        # remove box that is too small
+        for i, bbox in enumerate(out_bboxs):
+            if bbox[2] < 10 or bbox[3] < 10:
+                out_bboxs.pop(i)
+
+        out_bboxs = np.array(out_bboxs)
+        sample = {'img': out_img, 'annot': out_bboxs}
+
+        return sample
+
+
+class ToGray(object):
+
+    def __init__(self, p=1):
+        '''
+        Transform image to grayscale.
+        :param p: probability to apply transformation
+        '''
+        self.transform = A.Compose(
+            [A.ToGray(p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image']
+        out_bboxs = np.array(transformed['bboxes'])
+        sample = {'img': out_img, 'annot': out_bboxs}
 
         return sample
