@@ -652,3 +652,31 @@ class RandomBrightnessContrast(object):
         sample['annot'] = out_bboxs
 
         return sample
+    
+class Sharpen(object):
+
+    def __init__(self):
+        '''
+        Transform image to grayscale.
+        :param p: probability to apply transformation
+        '''
+        self.transform = A.Compose(
+            [A.Sharpen(alpha=(0.2, 0.5), 
+            lightness=(0.5, 1.0), always_apply=False, p=0.5)] ,
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image']
+        out_bboxs = np.array(transformed['bboxes'])
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
+
+        return sample
+
