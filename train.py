@@ -23,6 +23,7 @@ from efficientdet.dataset import CocoDataset, Resizer, Normalizer, Augmenter, co
 from efficientdet.loss import FocalLoss
 from utils.sync_batchnorm import patch_replication_callback
 from utils.utils import replace_w_sync_bn, CustomDataParallel, get_last_weights, init_weights, boolean_string
+from dataprocessor import Mosaic, Mixup, RandomRotate
 
 
 class Params:
@@ -160,8 +161,29 @@ def train(opt):
                                image_ids=train_ids,
                                set=params.train_set,
                                transform=transforms.Compose([
-                                                    Normalizer(mean=params.mean, std=params.std),
                                                     Augmenter(),
+                                                    Mosaic(
+                                                        annot_file=os.path.join(opt.data_path, params.project_name, 'annotations/train.json'),
+                                                        image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
+                                                        image_ids=train_ids,
+                                                        transform=transforms.Compose([
+                                                            Augmenter(),
+                                                            RandomRotate(p=0.67),
+                                                        ]),
+                                                        p=0.5,
+                                                    ),
+                                                    Mixup(
+                                                        annot_file=os.path.join(opt.data_path, params.project_name, 'annotations/train.json'),
+                                                        image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
+                                                        image_ids=train_ids,
+                                                        transform=transforms.Compose([
+                                                            Augmenter(),
+                                                            RandomRotate(p=0.67),
+                                                        ]),
+                                                        p=0.5,
+                                                    ),
+                                                    RandomRotate(p=0.67),
+                                                    Normalizer(mean=params.mean, std=params.std),
                                                     Resizer(input_sizes[opt.compound_coef])
                                                     ]))
     training_generator = DataLoader(training_set, **training_params)

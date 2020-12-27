@@ -18,4 +18,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 \
 python3 train.py \
 --compound_coef 5 \
 --batch_size 4 \
+--lr 1e-3 \
 --load_weights models/efficientdet-d5.pth
