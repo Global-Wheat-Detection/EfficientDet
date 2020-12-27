@@ -107,6 +107,16 @@ def collater(data):
     return {'img': imgs, 'annot': annot_padded, 'scale': scales}
 
 
+class CustomToTensor(object):
+    """Cast to tensor for img & annot only (not scale)"""
+
+    def __call__(self, sample):
+        sample['img'] = torch.from_numpy(sample['img']).to(torch.float32)
+        sample['annot'] = torch.from_numpy(sample['annot'])
+
+        return sample
+
+
 class Resizer(object):
     """Convert ndarrays in sample to Tensors."""
     
@@ -132,7 +142,7 @@ class Resizer(object):
 
         annots[:, :4] *= scale
 
-        return {'img': torch.from_numpy(new_image).to(torch.float32), 'annot': torch.from_numpy(annots), 'scale': scale}
+        return {'img': new_image, 'annot': annots, 'scale': scale}
 
 
 class Augmenter(object):
@@ -153,7 +163,8 @@ class Augmenter(object):
             annots[:, 0] = cols - x2
             annots[:, 2] = cols - x_tmp
 
-            sample = {'img': image, 'annot': annots}
+            sample['img'] = image
+            sample['annot'] = annots
 
         return sample
 
@@ -167,4 +178,7 @@ class Normalizer(object):
     def __call__(self, sample):
         image, annots = sample['img'], sample['annot']
 
-        return {'img': ((image.astype(np.float32) - self.mean) / self.std), 'annot': annots}
+        sample['img'] = ((image.astype(np.float32) - self.mean) / self.std)
+        sample['annot'] = annots
+
+        return sample

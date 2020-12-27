@@ -221,7 +221,8 @@ class Mosaic(object):
                     new_img[y_length - cut_img.shape[0]:, x_length - cut_img.shape[1]:, :] = cut_img
                     merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
 
-            sample = {'img': new_img, 'annot': merge_bboxs}
+            sample['img'] = new_img
+            sample['annot'] = merge_bboxs
 
         return sample
 
@@ -279,7 +280,8 @@ class Mixup(object):
             mixup_img = mixup_ratio * input_img + (1 - mixup_ratio) * mixup_img
             mixup_annotation = np.concatenate((input_bbx, add_annotation), axis=0)
 
-            sample = {'img':mixup_img, 'annot':mixup_annotation}
+            sample['img'] = mixup_img
+            sample['annot'] = mixup_annotation
 
         return sample
 
@@ -302,7 +304,8 @@ class GaussianBlur(object):
 
             image_blur = cv2.GaussianBlur(input_img, self.kernel_size, 0)
 
-            sample = {'img': image_blur, 'annot':input_bbx}
+            sample['img'] = image_blur
+            sample['annot'] = input_bbx
 
         return sample
 
@@ -331,7 +334,8 @@ class GaussianNoise(object):
                           ratio * np.random.normal(0, 1, input_img.shape)
             image_noise = np.clip(image_noise, 0.0, 1.0)
 
-            sample = {'img': image_noise, 'annot': input_bbx}
+            sample['img'] = image_noise
+            sample['annot'] = input_bbx
 
         return sample
 
@@ -387,6 +391,7 @@ class RandomRotate(object):
                 rotated_bbox[0, 4] = 0
                 rotated_bboxs = np.concatenate((rotated_bboxs, rotated_bbox), axis=0)
 
-            sample = {'img': rotated_img, 'annot': rotated_bboxs}
+            sample['img'] = rotated_img
+            sample['annot'] = rotated_bboxs
 
         return sample
