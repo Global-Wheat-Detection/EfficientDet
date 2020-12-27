@@ -8,6 +8,7 @@ import albumentations as A
 
 
 class Mosaic(object):
+
     def __init__(self, annot_file, image_folder, image_ids=None, transform=None, p=1):
         '''
         Apply Mosaic augmentation to passed in image.
@@ -229,6 +230,7 @@ class Mosaic(object):
 
 
 class Mixup(object):
+
     def __init__(self, image_ids, annot_file, image_folder, transform=None, p=1.0):
         '''
         Mix passed in image with another.
@@ -459,7 +461,7 @@ class JpegCompression(object):
         Apply JEPG compression.
         :param quality_lower: quality upper bound
         :param quality_upper: quality lower bound
-        :param p: probability to apply transformation
+        :param p: probability of applying transformation
         '''
         self.transform = A.Compose(
             [A.JpegCompression(quality_lower=quality_lower,
@@ -488,7 +490,7 @@ class MedianBlur(object):
     def __init__(self, blur_limit=11, p=1):
         '''
         Apply MedianBlur blur.
-        :param p: probability to apply transformation
+        :param p: probability of applying transformation
         '''
         self.transform = A.Compose(
             [A.MedianBlur(blur_limit=blur_limit, p=p)],
@@ -518,7 +520,7 @@ class RandomCrop(object):
         Randomly crop from an image.
         :param height: height of cropped image
         :param width: width of cropped image
-        :param p: probability to apply transformation
+        :param p: probability of applying transformation
         '''
         self.transform = A.Compose(
             [A.RandomCrop(height, width, p=p)],
@@ -552,7 +554,7 @@ class ToGray(object):
     def __init__(self, p=1):
         '''
         Transform image to grayscale.
-        :param p: probability to apply transformation
+        :param p: probability of applying transformation
         '''
         self.transform = A.Compose(
             [A.ToGray(p=p)],
@@ -563,9 +565,87 @@ class ToGray(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
+        input_img = (input_img * 255).astype(np.uint8)
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
-        out_img = transformed['image']
+        out_img = transformed['image'] / 255
+        out_bboxs = np.array(transformed['bboxes'])
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
+
+        return sample
+
+
+class HueSaturationValue(object):
+
+    def __init__(self, hue_shift_limit=20, sat_shift_limit=30,
+                 val_shift_limit=20, p=1):
+        '''
+        Randomly change hue, saturation and value of the input image.
+        :param hue_shift_limit: range for changing hue.
+            If hue_shift_limit is a single int, the range will be
+            (-hue_shift_limit, hue_shift_limit). Default: (-20, 20).
+        :param sat_shift_limit: range for changing saturation.
+            If sat_shift_limit is a single int, the range will be
+            (-sat_shift_limit, sat_shift_limit). Default: (-30, 30).
+        :param val_shift_limit: range for changing value.
+            If val_shift_limit is a single int, the range will be
+            (-val_shift_limit, val_shift_limit). Default: (-20, 20).
+        :param p: probability of applying transformation
+        '''
+        self.transform = A.Compose(
+            [A.HueSaturationValue(hue_shift_limit, sat_shift_limit,
+                                  val_shift_limit, p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        input_img = (input_img * 255).astype(np.uint8)
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image'] / 255
+        out_bboxs = np.array(transformed['bboxes'])
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
+
+        return sample
+
+
+class RandomBrightnessContrast(object):
+
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2,
+                 brightness_by_max=True, p=1):
+        '''
+        Randomly change brightness and contrast of the input image.
+        :param brightness_limit: factor range for changing brightness.
+            If limit is a single float, the range will be (-limit, limit).
+            Default: (-0.2, 0.2).
+        :param contrast_limit: factor range for changing contrast.
+            If limit is a single float, the range will be (-limit, limit).
+            Default: (-0.2, 0.2).
+        :param brightness_by_max: If True adjust contrast by image dtype maximum,
+            else adjust contrast by image mean.
+        :param p: probability of applying transformation
+        '''
+        self.transform = A.Compose(
+            [A.RandomBrightnessContrast(brightness_limit, contrast_limit,
+                                  brightness_by_max, p=p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        input_img = (input_img * 255).astype(np.uint8)
+        transformed = self.transform(image=input_img, bboxes=input_bbx)
+
+        out_img = transformed['image'] / 255
         out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
