@@ -231,7 +231,7 @@ class Mosaic(object):
 
 class Mixup(object):
 
-    def __init__(self, image_ids, annot_file, image_folder, transform=None, p=1.0):
+    def __init__(self, annot_file, image_folder, image_ids=None, transform=None, p=1.0):
         '''
         Mix passed in image with another.
         :param image_ids: ids of training images
@@ -243,7 +243,10 @@ class Mixup(object):
         self.proba = p
         self.image_folder = image_folder
         self.annot = COCO(annot_file)
-        self.image_ids = image_ids
+        if image_ids:
+            self.image_ids = image_ids
+        else:
+            self.image_ids = list(self.annot.imgs.keys())
         self.transform = transform
 
     def __call__(self, sample):
@@ -652,44 +655,20 @@ class RandomBrightnessContrast(object):
         sample['annot'] = out_bboxs
 
         return sample
-    
+
+
 class Sharpen(object):
+    # Unsolved:
+    # AttributeError: module 'albumentations' has no attribute 'Sharpen'
 
     def __init__(self):
         '''
-         Sharpen image 
-        
+        Sharpen the image and overlays the result with the original image.
+        :param p: probability to apply transformation
         '''
         self.transform = A.Compose(
-            [A.Sharpen(alpha=(0.2, 0.5), 
-            lightness=(0.5, 1.0), always_apply=False, p=0.5)] ,
-            bbox_params=A.BboxParams(format='coco'),
-        )
-
-    def __call__(self, sample):
-        input_img = sample['img']
-        input_bbx = sample['annot']
-
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
-
-        out_img = transformed['image']
-        out_bboxs = np.array(transformed['bboxes'])
-
-        sample['img'] = out_img
-        sample['annot'] = out_bboxs
-
-        return sample
-
-    
-class Emboss(object):
-
-    def __init__(self):
-        '''
-        Emboss image.
-        
-        '''
-        self.transform = A.Compose(
-            [A.Emboss(alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5)],
+            [A.Sharpen(alpha=(0.2, 0.5),
+            lightness=(0.5, 1.0), always_apply=False, p=1.0)] ,
             bbox_params=A.BboxParams(format='coco'),
         )
 
