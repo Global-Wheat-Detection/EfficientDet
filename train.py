@@ -20,7 +20,7 @@ from pycocotools.coco import COCO
 
 from option import get_args
 from backbone import EfficientDetBackbone
-from efficientdet.dataset import CocoDataset, CustomToTensor, Resizer, Normalizer, Augmenter, collater
+from efficientdet.dataset import CocoDataset, CustomToTensor, Resizer, Normalizer, collater
 from efficientdet.loss import FocalLoss
 from utils.sync_batchnorm import patch_replication_callback
 from utils.utils import replace_w_sync_bn, CustomDataParallel, get_last_weights, init_weights, boolean_string
@@ -129,12 +129,12 @@ def train(opt):
 
     augmentations = transforms.Compose([
         RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
-        HorizontalFlip(p=opt.aug_prob),
-        VerticalFlip(p=opt.aug_prob),
-        RandomRotate(p=opt.aug_prob),
+        HorizontalFlip(p=0.5),
+        VerticalFlip(p=0.5),
+        RandomRotate(p=0.5),
         RandomBrightnessContrast(p=opt.aug_prob),
         HueSaturationValue(p=opt.aug_prob),
-        ToGray(p=0.005),
+        ToGray(p=min(opt.aug_prob, 0.005)),
         MedianBlur(p=opt.aug_prob),
         GaussianNoise(p=opt.aug_prob),
         JpegCompression(p=opt.aug_prob),
@@ -144,12 +144,12 @@ def train(opt):
             image_ids=train_ids,
             transform=transforms.Compose([
                 RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
-                HorizontalFlip(p=opt.aug_prob),
-                VerticalFlip(p=opt.aug_prob),
-                RandomRotate(p=opt.aug_prob),
+                HorizontalFlip(p=0.5),
+                VerticalFlip(p=0.5),
+                RandomRotate(p=0.5),
                 RandomBrightnessContrast(p=opt.aug_prob),
                 HueSaturationValue(p=opt.aug_prob),
-                ToGray(p=0.005),
+                ToGray(p=min(opt.aug_prob, 0.005)),
                 MedianBlur(p=opt.aug_prob),
                 GaussianNoise(p=opt.aug_prob),
                 JpegCompression(p=opt.aug_prob),
@@ -162,12 +162,12 @@ def train(opt):
             image_ids=train_ids,
             transform=transforms.Compose([
                 RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
-                HorizontalFlip(p=opt.aug_prob),
-                VerticalFlip(p=opt.aug_prob),
-                RandomRotate(p=opt.aug_prob),
+                HorizontalFlip(p=0.5),
+                VerticalFlip(p=0.5),
+                RandomRotate(p=0.5),
                 RandomBrightnessContrast(p=opt.aug_prob),
                 HueSaturationValue(p=opt.aug_prob),
-                ToGray(p=0.005),
+                ToGray(p=min(opt.aug_prob, 0.005)),
                 MedianBlur(p=opt.aug_prob),
                 GaussianNoise(p=opt.aug_prob),
                 JpegCompression(p=opt.aug_prob),
@@ -176,7 +176,7 @@ def train(opt):
         ),
         Normalizer(mean=params.mean, std=params.std),
         CustomToTensor(),
-    ]) 
+    ])
 
     training_set = CocoDataset(root_dir=os.path.join(opt.data_path, params.project_name),
                                image_ids=train_ids,
