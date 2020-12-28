@@ -24,7 +24,9 @@ from efficientdet.dataset import CocoDataset, CustomToTensor, Resizer, Normalize
 from efficientdet.loss import FocalLoss
 from utils.sync_batchnorm import patch_replication_callback
 from utils.utils import replace_w_sync_bn, CustomDataParallel, get_last_weights, init_weights, boolean_string
-from dataprocessor import Mosaic, Mixup, RandomRotate
+from dataprocessor import Mosaic, HorizontalFlip, RandomBrightnessContrast, \
+    MedianBlur, ToGray, HueSaturationValue, Mixup, GaussianNoise, \
+    RandomRotate, VerticalFlip, JpegCompression
 
 
 class Params:
@@ -127,33 +129,52 @@ def train(opt):
 
     augmentations = transforms.Compose([
         Resizer(input_sizes[opt.compound_coef]),
-        Augmenter(),
-        RandomRotate(p=opt.aug_prob),
+        HorizontalFlip(p=p=opt.aug_prob),
+        VerticalFlip(p=p=opt.aug_prob),
+        RandomRotate(p=p=opt.aug_prob),
+        RandomBrightnessContrast(p=p=opt.aug_prob),
+        HueSaturationValue(p=p=opt.aug_prob),
+        ToGray(p=0.005),
+        MedianBlur(p=p=opt.aug_prob),
+        GaussianNoise(p=p=opt.aug_prob),
+        JpegCompression(p=p=opt.aug_prob),
         Mosaic(
             annot_file=os.path.join(opt.data_path, params.project_name, 'annotations/train.json'),
             image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
             image_ids=train_ids,
             transform=transforms.Compose([
-                Resizer(input_sizes[opt.compound_coef]),
-                Augmenter(),
-                RandomRotate(p=opt.aug_prob),
+                HorizontalFlip(p=p=opt.aug_prob),
+                VerticalFlip(p=p=opt.aug_prob),
+                RandomRotate(p=p=opt.aug_prob),
+                RandomBrightnessContrast(p=p=opt.aug_prob),
+                HueSaturationValue(p=p=opt.aug_prob),
+                ToGray(p=0.005),
+                MedianBlur(p=p=opt.aug_prob),
+                GaussianNoise(p=p=opt.aug_prob),
+                JpegCompression(p=p=opt.aug_prob),
             ]),
-            p=opt.aug_prob,
+            p=p=opt.aug_prob,
         ),
         Mixup(
             annot_file=os.path.join(opt.data_path, params.project_name, 'annotations/train.json'),
             image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
             image_ids=train_ids,
             transform=transforms.Compose([
-                Resizer(input_sizes[opt.compound_coef]),
-                Augmenter(),
-                RandomRotate(p=opt.aug_prob),
+                HorizontalFlip(p=p=opt.aug_prob),
+                VerticalFlip(p=p=opt.aug_prob),
+                RandomRotate(p=p=opt.aug_prob),
+                RandomBrightnessContrast(p=p=opt.aug_prob),
+                HueSaturationValue(p=p=opt.aug_prob),
+                ToGray(p=0.005),
+                MedianBlur(p=p=opt.aug_prob),
+                GaussianNoise(p=p=opt.aug_prob),
+                JpegCompression(p=p=opt.aug_prob),
             ]),
-            p=opt.aug_prob,
+            p=p=opt.aug_prob,
         ),
         Normalizer(mean=params.mean, std=params.std),
         CustomToTensor(),
-    ])
+    ]) 
 
     training_set = CocoDataset(root_dir=os.path.join(opt.data_path, params.project_name),
                                image_ids=train_ids,
