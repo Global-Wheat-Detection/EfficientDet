@@ -130,9 +130,9 @@ class Mosaic(object):
 
             if self.transform:
                 for i in [1, 2, 3]:
-                    sample = self.transform({'img': mosaic_imgs[i], 'annot': mosaic_bboxs[i]})
-                    mosaic_imgs[i] = sample['img']
-                    mosaic_bboxs[i] = sample['annot']
+                    transformed = self.transform({'img': mosaic_imgs[i], 'annot': mosaic_bboxs[i]})
+                    mosaic_imgs[i] = transformed['img']
+                    mosaic_bboxs[i] = transformed['annot']
 
             for i in [1, 2, 3]:
                 mosaic_bboxs[i][:, 2] = mosaic_bboxs[i][:, 2] - mosaic_bboxs[i][:, 0]
@@ -297,9 +297,9 @@ class Mixup(object):
             add_annotation[:, 3] = add_annotation[:, 1] + add_annotation[:, 3]
 
             if self.transform:
-                sample = self.transform({'img': mixup_img, 'annot': add_annotation})
-                mixup_img = sample['img']
-                add_annotation = sample['annot']
+                transformed = self.transform({'img': mixup_img, 'annot': add_annotation})
+                mixup_img = transformed['img']
+                add_annotation = transformed['annot']
 
             add_annotation[:, 2] = add_annotation[:, 2] - add_annotation[:, 0]
             add_annotation[:, 3] = add_annotation[:, 3] - add_annotation[:, 1]
