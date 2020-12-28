@@ -329,7 +329,7 @@ class GaussianNoise(object):
         self.ratio_max = ratio_max
         self.proba = p
 
-    def __ceil__(self, sample):
+    def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
             input_img = sample['img']
             input_bbx = sample['annot']
@@ -337,7 +337,7 @@ class GaussianNoise(object):
             ratio = random.uniform(self.ratio_min, self.ratio_max)
 
             image_noise = (1 - ratio) * input_img +\
-                          ratio * np.random.normal(0, 1, input_img.shape)
+                          ratio * np.random.normal(0, 0.5, input_img.shape)
             image_noise = np.clip(image_noise, 0.0, 1.0)
 
             sample['img'] = image_noise
