@@ -720,3 +720,54 @@ class Sharpen(object):
         sample['annot'] = out_bboxs
 
         return sample
+
+
+class RandomSizedCrop(object):
+
+    def __init__(self, min_max_height, height, width, w2h_ratio=1.0, p=1):
+        '''
+        Crop a random part of the input and rescale it to some size.
+        :param min_max_height: crop size limits. tuple of float (0 to 1).
+        :param height: height after crop and resize.
+        :param width: width after crop and resize.
+        :param w2h_ratio: aspect ratio of crop. float.
+        :param p: probability of applying transformation.
+        '''
+        self.min_max_height = min_max_height
+        self.height = height
+        self.width = width
+        self.w2h_ratio = w2h_ratio
+        self.p = p
+
+    def __call__(self, sample):
+        input_img = sample['img']
+        input_bbx = sample['annot']
+
+        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
+        min_max_height = (int(self.min_max_height[0] * input_img.shape[0]),
+                          int(self.min_max_height[1] * input_img.shape[0]))
+        transform = A.Compose(
+            [A.RandomSizedCrop(min_max_height=min_max_height,
+                               height=self.height, width=self.width,
+                               w2h_ratio=self.w2h_ratio, p=self.p)],
+            bbox_params=A.BboxParams(format='coco'),
+        )
+        transformed = transform(image=input_img, bboxes=input_bbx)
+
+        for i, bbox in enumerate(transformed['bboxes']):
+            if bbox[2] < 15 or bbox[3] < 15:
+                transformed['bboxes'].pop(i)
+
+        out_img = transformed['image']
+        out_bboxs = transformed['bboxes']
+        out_bboxs = np.array(out_bboxs)
+
+        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
+        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
+
+        sample['img'] = out_img
+        sample['annot'] = out_bboxs
+
+        return sample
