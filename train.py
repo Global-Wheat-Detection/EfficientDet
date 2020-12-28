@@ -26,7 +26,7 @@ from utils.sync_batchnorm import patch_replication_callback
 from utils.utils import replace_w_sync_bn, CustomDataParallel, get_last_weights, init_weights, boolean_string
 from dataprocessor import Mosaic, HorizontalFlip, RandomBrightnessContrast, \
     MedianBlur, ToGray, HueSaturationValue, Mixup, GaussianNoise, \
-    RandomRotate, VerticalFlip, JpegCompression
+    RandomRotate, VerticalFlip, JpegCompression, RandomSizedCrop
 
 
 class Params:
@@ -128,7 +128,7 @@ def train(opt):
         return
 
     augmentations = transforms.Compose([
-        Resizer(input_sizes[opt.compound_coef]),
+        RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
         HorizontalFlip(p=opt.aug_prob),
         VerticalFlip(p=opt.aug_prob),
         RandomRotate(p=opt.aug_prob),
@@ -143,6 +143,7 @@ def train(opt):
             image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
             image_ids=train_ids,
             transform=transforms.Compose([
+                RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
                 HorizontalFlip(p=opt.aug_prob),
                 VerticalFlip(p=opt.aug_prob),
                 RandomRotate(p=opt.aug_prob),
@@ -160,6 +161,7 @@ def train(opt):
             image_folder=os.path.join(opt.data_path, params.project_name, params.train_set),
             image_ids=train_ids,
             transform=transforms.Compose([
+                RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
                 HorizontalFlip(p=opt.aug_prob),
                 VerticalFlip(p=opt.aug_prob),
                 RandomRotate(p=opt.aug_prob),
