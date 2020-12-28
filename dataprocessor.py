@@ -294,7 +294,7 @@ class Mixup(object):
 
 class GaussianBlur(object):
 
-    def __len__(self, kernel_szie=(35, 35), p=1.0):
+    def __init__(self, kernel_szie=(35, 35), p=1.0):
         '''
         Apply Gaussian blur.
         :param kernel_szie: kernel size of blur. tuple
@@ -303,7 +303,7 @@ class GaussianBlur(object):
         self.kernel_size = kernel_szie
         self.proba = p
 
-    def __ceil__(self, sample):
+    def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
             input_img = sample['img']
             input_bbx = sample['annot']
@@ -495,6 +495,7 @@ class MedianBlur(object):
         Apply MedianBlur blur.
         :param p: probability of applying transformation
         '''
+        self.p = p
         self.transform = A.Compose(
             [A.MedianBlur(blur_limit=blur_limit, p=p)],
             bbox_params=A.BboxParams(format='coco'),
