@@ -7,6 +7,29 @@ from pycocotools.coco import COCO
 import albumentations as A
 
 
+def ltwh2ltrb(bboxs):
+    if bboxs.ndim == 2:
+        bboxs[:, 2] = bboxs[:, 2] + bboxs[:, 0]
+        bboxs[:, 3] = bboxs[:, 3] + bboxs[:, 1]
+    elif bboxs.ndim == 1:
+        if bboxs.shape[0] != 0:
+            bboxs[2] = bboxs[2] + bboxs[0]
+            bboxs[3] = bboxs[3] + bboxs[1]
+
+    return bboxs
+
+
+def ltrb2ltwh(bboxs):
+    if bboxs.ndim == 2:
+        bboxs[:, 2] = bboxs[:, 2] - bboxs[:, 0]
+        bboxs[:, 3] = bboxs[:, 3] - bboxs[:, 1]
+    elif bboxs.ndim == 1:
+        if bboxs.shape[0] != 0:
+            bboxs[2] = bboxs[2] - bboxs[0]
+            bboxs[3] = bboxs[3] - bboxs[1]
+
+    return bboxs
+
 class Mosaic(object):
 
     def __init__(self, annot_file, image_folder, image_ids=None, transform=None, p=1):
@@ -88,11 +111,9 @@ class Mosaic(object):
     def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
             input_img = sample['img']
-            input_bbx = sample['annot']     # [left top right bot]
+            input_bbx = sample['annot']
 
-            # [left top width height]
-            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+            input_bbx = ltrb2ltwh(input_bbx)
 
             # prepare the other 3 images
             choice = np.random.choice(len(self.image_ids), 3, replace=False)
@@ -234,8 +255,7 @@ class Mosaic(object):
                     new_img[y_length - cut_img.shape[0]:, x_length - cut_img.shape[1]:, :] = cut_img
                     merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
 
-            merge_bboxs[:, 2] = merge_bboxs[:, 2] + merge_bboxs[:, 0]
-            merge_bboxs[:, 3] = merge_bboxs[:, 3] + merge_bboxs[:, 1]
+            merge_bboxs = ltwh2ltrb(merge_bboxs)
 
             sample['img'] = new_img
             sample['annot'] = merge_bboxs
@@ -268,8 +288,7 @@ class Mixup(object):
             input_img = sample['img']
             input_bbx = sample['annot']
 
-            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+            input_bbx = ltrb2ltwh(input_bbx)
 
             # prepare the other image
             choice = int(np.random.choice(len(self.image_ids), 1, replace=False))
@@ -309,8 +328,7 @@ class Mixup(object):
             mixup_img = mixup_ratio * input_img + (1 - mixup_ratio) * mixup_img
             mixup_annotation = np.concatenate((input_bbx, add_annotation), axis=0)
 
-            mixup_annotation[:, 2] = mixup_annotation[:, 2] + mixup_annotation[:, 0]
-            mixup_annotation[:, 3] = mixup_annotation[:, 3] + mixup_annotation[:, 1]
+            mixup_annotation = ltwh2ltrb(mixup_annotation)
 
             sample['img'] = mixup_img
             sample['annot'] = mixup_annotation
@@ -397,8 +415,7 @@ class RandomRotate(object):
             input_img = sample['img']
             input_bbx = sample['annot']
 
-            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+            input_bbx = ltrb2ltwh(input_bbx)
 
             counterclockwise = np.random.randint(2)
 
@@ -426,9 +443,7 @@ class RandomRotate(object):
                 rotated_bbox[0, 4] = 0
                 rotated_bboxs = np.concatenate((rotated_bboxs, rotated_bbox), axis=0)
 
-            rotated_bboxs[:, 2] = rotated_bboxs[:, 2] + rotated_bboxs[:, 0]
-            rotated_bboxs[:, 3] = rotated_bboxs[:, 3] + rotated_bboxs[:, 1]
-
+            rotated_bboxs = ltwh2ltrb(rotated_bboxs)
             sample['img'] = rotated_img
             sample['annot'] = rotated_bboxs
 
@@ -451,17 +466,14 @@ class HorizontalFlip(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
-        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+        input_bbx = ltrb2ltwh(input_bbx)
 
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
 
-        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
-        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
-
+        out_bboxs = ltwh2ltrb(out_bboxs)
         sample['img'] = out_img
         sample['annot'] = out_bboxs
 
@@ -484,16 +496,14 @@ class VerticalFlip(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
-        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+        input_bbx = ltrb2ltwh(input_bbx)
 
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
 
-        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
-        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
+        out_bboxs = ltwh2ltrb(out_bboxs)
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
@@ -575,8 +585,7 @@ class RandomCrop(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
-        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+        input_bbx = ltrb2ltwh(input_bbx)
 
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
@@ -584,8 +593,7 @@ class RandomCrop(object):
         out_bboxs = transformed['bboxes']
         out_bboxs = np.array(out_bboxs)
 
-        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
-        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
+        out_bboxs = ltwh2ltrb(out_bboxs)
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
@@ -743,8 +751,7 @@ class RandomSizedCrop(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
-        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
-        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+        input_bbx = ltrb2ltwh(input_bbx)
 
         min_max_height = (int(self.min_max_height[0] * input_img.shape[0]),
                           int(self.min_max_height[1] * input_img.shape[0]))
@@ -764,8 +771,7 @@ class RandomSizedCrop(object):
         out_bboxs = transformed['bboxes']
         out_bboxs = np.array(out_bboxs)
 
-        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
-        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
+        out_bboxs = ltwh2ltrb(out_bboxs)
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
