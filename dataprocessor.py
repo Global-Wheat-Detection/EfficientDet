@@ -88,7 +88,11 @@ class Mosaic(object):
     def __call__(self, sample):
         if random.uniform(0, 1) <= self.proba:
             input_img = sample['img']
-            input_bbx = sample['annot']
+            input_bbx = sample['annot']     # [left top right bot]
+
+            # [left top width height]
+            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
 
             # prepare the other 3 images
             choice = np.random.choice(len(self.image_ids), 3, replace=False)
@@ -119,6 +123,9 @@ class Mosaic(object):
                     bbox = np.expand_dims(np.array(bbox), axis=0)
                     processed_annot = np.concatenate((processed_annot, bbox), axis=0)
 
+                processed_annot[:, 2] = processed_annot[:, 0] + processed_annot[:, 2]
+                processed_annot[:, 3] = processed_annot[:, 1] + processed_annot[:, 3]
+
                 mosaic_bboxs.append(processed_annot)
 
             if self.transform:
@@ -126,6 +133,10 @@ class Mosaic(object):
                     sample = self.transform({'img': mosaic_imgs[i], 'annot': mosaic_bboxs[i]})
                     mosaic_imgs[i] = sample['img']
                     mosaic_bboxs[i] = sample['annot']
+
+            for i in [1, 2, 3]:
+                mosaic_bboxs[i][:, 2] = mosaic_bboxs[i][:, 2] - mosaic_bboxs[i][:, 0]
+                mosaic_bboxs[i][:, 3] = mosaic_bboxs[i][:, 3] - mosaic_bboxs[i][:, 1]
 
             # do augmentation
             x_length = input_img.shape[1]
@@ -136,7 +147,7 @@ class Mosaic(object):
             merge_bboxs = np.zeros((0, 5))
             new_img = np.zeros((y_length, x_length, 3))  # [H, W, C]
 
-            for i in range(4):
+            for i in range(4):          # cut and paste images
                 ori_width = mosaic_imgs[i].shape[1]
                 ori_height = mosaic_imgs[i].shape[0]
                 if i == 0:  # top left
@@ -223,6 +234,9 @@ class Mosaic(object):
                     new_img[y_length - cut_img.shape[0]:, x_length - cut_img.shape[1]:, :] = cut_img
                     merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
 
+            merge_bboxs[:, 2] = merge_bboxs[:, 2] + merge_bboxs[:, 0]
+            merge_bboxs[:, 3] = merge_bboxs[:, 3] + merge_bboxs[:, 1]
+
             sample['img'] = new_img
             sample['annot'] = merge_bboxs
 
@@ -254,6 +268,9 @@ class Mixup(object):
             input_img = sample['img']
             input_bbx = sample['annot']
 
+            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
             # prepare the other image
             choice = int(np.random.choice(len(self.image_ids), 1, replace=False))
             mixup_id = self.image_ids[choice]
@@ -276,15 +293,24 @@ class Mixup(object):
                 bbox = np.expand_dims(np.array(bbox), axis=0)
                 add_annotation = np.concatenate((add_annotation, bbox), axis=0)
 
+            add_annotation[:, 2] = add_annotation[:, 0] + add_annotation[:, 2]
+            add_annotation[:, 3] = add_annotation[:, 1] + add_annotation[:, 3]
+
             if self.transform:
                 sample = self.transform({'img': mixup_img, 'annot': add_annotation})
                 mixup_img = sample['img']
                 add_annotation = sample['annot']
 
+            add_annotation[:, 2] = add_annotation[:, 2] - add_annotation[:, 0]
+            add_annotation[:, 3] = add_annotation[:, 3] - add_annotation[:, 1]
+
             # do mixup augmentation
             mixup_ratio = random.uniform(0.35, 0.65)
             mixup_img = mixup_ratio * input_img + (1 - mixup_ratio) * mixup_img
             mixup_annotation = np.concatenate((input_bbx, add_annotation), axis=0)
+
+            mixup_annotation[:, 2] = mixup_annotation[:, 2] + mixup_annotation[:, 0]
+            mixup_annotation[:, 3] = mixup_annotation[:, 3] + mixup_annotation[:, 1]
 
             sample['img'] = mixup_img
             sample['annot'] = mixup_annotation
@@ -371,6 +397,9 @@ class RandomRotate(object):
             input_img = sample['img']
             input_bbx = sample['annot']
 
+            input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+            input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
             counterclockwise = np.random.randint(2)
 
             # image
@@ -397,6 +426,9 @@ class RandomRotate(object):
                 rotated_bbox[0, 4] = 0
                 rotated_bboxs = np.concatenate((rotated_bboxs, rotated_bbox), axis=0)
 
+            rotated_bboxs[:, 2] = rotated_bboxs[:, 2] + rotated_bboxs[:, 0]
+            rotated_bboxs[:, 3] = rotated_bboxs[:, 3] + rotated_bboxs[:, 1]
+
             sample['img'] = rotated_img
             sample['annot'] = rotated_bboxs
 
@@ -419,10 +451,16 @@ class HorizontalFlip(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
+        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
+
+        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
+        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
@@ -446,10 +484,16 @@ class VerticalFlip(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
+        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
         out_img = transformed['image']
         out_bboxs = np.array(transformed['bboxes'])
+
+        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
+        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
@@ -469,7 +513,6 @@ class JpegCompression(object):
         self.transform = A.Compose(
             [A.JpegCompression(quality_lower=quality_lower,
                                quality_upper=quality_upper, p=p)],
-            bbox_params=A.BboxParams(format='coco'),
         )
 
     def __call__(self, sample):
@@ -477,13 +520,12 @@ class JpegCompression(object):
         input_img = (input_img * 255).astype(np.uint8)
         input_bbx = sample['annot']
 
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
+        transformed = self.transform(image=input_img)
 
         out_img = transformed['image'] / 255
-        out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
-        sample['annot'] = out_bboxs
+        sample['annot'] = input_bbx
 
         return sample
 
@@ -498,7 +540,6 @@ class MedianBlur(object):
         self.p = p
         self.transform = A.Compose(
             [A.MedianBlur(blur_limit=blur_limit, p=p)],
-            bbox_params=A.BboxParams(format='coco'),
         )
 
     def __call__(self, sample):
@@ -506,13 +547,12 @@ class MedianBlur(object):
         input_img = (input_img * 255).astype(np.uint8)
         input_bbx = sample['annot']
 
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
+        transformed = self.transform(image=input_img)
 
         out_img = transformed['image'] / 255
-        out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
-        sample['annot'] = out_bboxs
+        sample['annot'] = input_bbx
 
         return sample
 
@@ -535,17 +575,17 @@ class RandomCrop(object):
         input_img = sample['img']
         input_bbx = sample['annot']
 
+        input_bbx[:, 2] = input_bbx[:, 2] - input_bbx[:, 0]
+        input_bbx[:, 3] = input_bbx[:, 3] - input_bbx[:, 1]
+
         transformed = self.transform(image=input_img, bboxes=input_bbx)
 
         out_img = transformed['image']
         out_bboxs = transformed['bboxes']
-
-        # remove box that is too small
-        for i, bbox in enumerate(out_bboxs):
-            if bbox[2] < 10 or bbox[3] < 10:
-                out_bboxs.pop(i)
-
         out_bboxs = np.array(out_bboxs)
+
+        out_bboxs[:, 2] = out_bboxs[:, 2] + out_bboxs[:, 0]
+        out_bboxs[:, 3] = out_bboxs[:, 3] + out_bboxs[:, 1]
 
         sample['img'] = out_img
         sample['annot'] = out_bboxs
@@ -562,7 +602,6 @@ class ToGray(object):
         '''
         self.transform = A.Compose(
             [A.ToGray(p=p)],
-            bbox_params=A.BboxParams(format='coco'),
         )
 
     def __call__(self, sample):
@@ -570,13 +609,12 @@ class ToGray(object):
         input_bbx = sample['annot']
 
         input_img = (input_img * 255).astype(np.uint8)
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
+        transformed = self.transform(image=input_img)
 
         out_img = transformed['image'] / 255
-        out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
-        sample['annot'] = out_bboxs
+        sample['annot'] = input_bbx
 
         return sample
 
@@ -601,7 +639,6 @@ class HueSaturationValue(object):
         self.transform = A.Compose(
             [A.HueSaturationValue(hue_shift_limit, sat_shift_limit,
                                   val_shift_limit, p=p)],
-            bbox_params=A.BboxParams(format='coco'),
         )
 
     def __call__(self, sample):
@@ -609,13 +646,12 @@ class HueSaturationValue(object):
         input_bbx = sample['annot']
 
         input_img = (input_img * 255).astype(np.uint8)
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
+        transformed = self.transform(image=input_img)
 
         out_img = transformed['image'] / 255
-        out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
-        sample['annot'] = out_bboxs
+        sample['annot'] = input_bbx
 
         return sample
 
@@ -639,7 +675,6 @@ class RandomBrightnessContrast(object):
         self.transform = A.Compose(
             [A.RandomBrightnessContrast(brightness_limit, contrast_limit,
                                   brightness_by_max, p=p)],
-            bbox_params=A.BboxParams(format='coco'),
         )
 
     def __call__(self, sample):
@@ -647,13 +682,12 @@ class RandomBrightnessContrast(object):
         input_bbx = sample['annot']
 
         input_img = (input_img * 255).astype(np.uint8)
-        transformed = self.transform(image=input_img, bboxes=input_bbx)
+        transformed = self.transform(image=input_img)
 
         out_img = transformed['image'] / 255
-        out_bboxs = np.array(transformed['bboxes'])
 
         sample['img'] = out_img
-        sample['annot'] = out_bboxs
+        sample['annot'] = input_bbx
 
         return sample
 
