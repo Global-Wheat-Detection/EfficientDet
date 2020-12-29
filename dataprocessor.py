@@ -32,6 +32,12 @@ def ltrb2ltwh(bboxs):
 
 
 def concate_bbox(old, new):
+    if old.ndim == 1:
+        if old.shape[0] != 0:
+            old = np.expand_dims(old, axis=0)
+        else:
+            old = np.zeros((0, 5))
+
     if new.ndim == 2:
         old = np.concatenate((old, new), axis=0)
     else:
