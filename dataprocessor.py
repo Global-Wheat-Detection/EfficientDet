@@ -144,8 +144,7 @@ class Mosaic(object):
                     bbox = np.expand_dims(np.array(bbox), axis=0)
                     processed_annot = np.concatenate((processed_annot, bbox), axis=0)
 
-                processed_annot[:, 2] = processed_annot[:, 0] + processed_annot[:, 2]
-                processed_annot[:, 3] = processed_annot[:, 1] + processed_annot[:, 3]
+                processed_annot = ltwh2ltrb(processed_annot)
 
                 mosaic_bboxs.append(processed_annot)
 
@@ -156,8 +155,7 @@ class Mosaic(object):
                     mosaic_bboxs[i] = transformed['annot']
 
             for i in [1, 2, 3]:
-                mosaic_bboxs[i][:, 2] = mosaic_bboxs[i][:, 2] - mosaic_bboxs[i][:, 0]
-                mosaic_bboxs[i][:, 3] = mosaic_bboxs[i][:, 3] - mosaic_bboxs[i][:, 1]
+                mosaic_bboxs[i] = ltrb2ltwh(mosaic_bboxs[i])
 
             # do augmentation
             x_length = input_img.shape[1]
@@ -312,16 +310,14 @@ class Mixup(object):
                 bbox = np.expand_dims(np.array(bbox), axis=0)
                 add_annotation = np.concatenate((add_annotation, bbox), axis=0)
 
-            add_annotation[:, 2] = add_annotation[:, 0] + add_annotation[:, 2]
-            add_annotation[:, 3] = add_annotation[:, 1] + add_annotation[:, 3]
+            add_annotation = ltwh2ltrb(add_annotation)
 
             if self.transform:
                 transformed = self.transform({'img': mixup_img, 'annot': add_annotation})
                 mixup_img = transformed['img']
                 add_annotation = transformed['annot']
 
-            add_annotation[:, 2] = add_annotation[:, 2] - add_annotation[:, 0]
-            add_annotation[:, 3] = add_annotation[:, 3] - add_annotation[:, 1]
+            add_annotation = ltrb2ltwh(add_annotation)
 
             # do mixup augmentation
             mixup_ratio = random.uniform(0.35, 0.65)
