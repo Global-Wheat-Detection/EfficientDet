@@ -30,6 +30,18 @@ def ltrb2ltwh(bboxs):
 
     return bboxs
 
+
+def concate_bbox(old, new):
+    if new.ndim == 2:
+        old = np.concatenate((old, new), axis=0)
+    else:
+        if new.shape[0] != 0:
+            new = np.expand_dims(new, axis=0)
+            old = np.concatenate((old, new), axis=0)
+
+    return old
+
+
 class Mosaic(object):
 
     def __init__(self, annot_file, image_folder, image_ids=None, transform=None, p=1):
@@ -172,7 +184,7 @@ class Mosaic(object):
                 if i == 0:  # top left
                     cut_img, cut_bbox = self.get_cut(mosaic_imgs[i], mosaic_bboxs[i], x_ratio, y_ratio)
                     new_img[:cut_img.shape[0], :cut_img.shape[1], :] = cut_img
-                    merge_bboxs = np.concatenate((merge_bboxs, cut_bbox), axis=0)
+                    merge_bboxs = concate_bbox(merge_bboxs, cut_bbox)
 
                 elif i == 1:  # top right
                     flipped_img = mosaic_imgs[i][:, ::-1, :]  # hortizontal flip
@@ -197,7 +209,7 @@ class Mosaic(object):
                                                        axis=0)
 
                     new_img[:cut_img.shape[0], x_length - cut_img.shape[1]:, :] = cut_img
-                    merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
+                    merge_bboxs = concate_bbox(merge_bboxs, flipped_bboxs)
 
                 elif i == 2:  # bot left
                     flipped_img = mosaic_imgs[i][::-1, :, :]  # vertical flip
@@ -224,7 +236,7 @@ class Mosaic(object):
                                                        axis=0)
 
                     new_img[y_length - cut_img.shape[0]:, :cut_img.shape[1], :] = cut_img
-                    merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
+                    merge_bboxs = concate_bbox(merge_bboxs, flipped_bboxs)
 
                 elif i == 3:  # bot right
                     flipped_img = mosaic_imgs[i][::-1, ::-1, :]  # vertical and horizontal flip
@@ -251,7 +263,7 @@ class Mosaic(object):
                                                        axis=0)
 
                     new_img[y_length - cut_img.shape[0]:, x_length - cut_img.shape[1]:, :] = cut_img
-                    merge_bboxs = np.concatenate((merge_bboxs, flipped_bboxs), axis=0)
+                    merge_bboxs = concate_bbox(merge_bboxs, flipped_bboxs)
 
             merge_bboxs = ltwh2ltrb(merge_bboxs)
 
@@ -322,7 +334,8 @@ class Mixup(object):
             # do mixup augmentation
             mixup_ratio = random.uniform(0.35, 0.65)
             mixup_img = mixup_ratio * input_img + (1 - mixup_ratio) * mixup_img
-            mixup_annotation = np.concatenate((input_bbx, add_annotation), axis=0)
+
+            mixup_annotation = concate_bbox(input_bbx, add_annotation)
 
             mixup_annotation = ltwh2ltrb(mixup_annotation)
 
@@ -589,6 +602,12 @@ class RandomCrop(object):
         out_bboxs = transformed['bboxes']
         out_bboxs = np.array(out_bboxs)
 
+        if out_bboxs.ndim == 1:
+            if out_bboxs.shape[0] != 0:
+                out_bboxs = np.expand_dims(out_bboxs, axis=0)
+            else:
+                out_bboxs = np.zeros((0, 5))
+
         out_bboxs = ltwh2ltrb(out_bboxs)
 
         sample['img'] = out_img
@@ -766,6 +785,12 @@ class RandomSizedCrop(object):
         out_img = transformed['image']
         out_bboxs = transformed['bboxes']
         out_bboxs = np.array(out_bboxs)
+
+        if out_bboxs.ndim == 1:
+            if out_bboxs.shape[0] != 0:
+                out_bboxs = np.expand_dims(out_bboxs, axis=0)
+            else:
+                out_bboxs = np.zeros((0, 5))
 
         out_bboxs = ltwh2ltrb(out_bboxs)
 
