@@ -19,6 +19,10 @@ def read_csv(anno_dir):
             res['height'] = int(m.group(3))
             annot['bbox'] = [round(float(x)) for x in m.group(4, 5, 6, 7)]
 
+            # https://www.kaggle.com/raininbox/check-clean-big-small-bboxes
+            if annot['bbox'][2]*annot['bbox'][3] < 300 or annot['bbox'][2] < 10 or annot['bbox'][3] < 10:
+                continue
+
             if annot['file_name'] not in images:
                 images[annot['file_name']] = res
             annots.append(annot)
