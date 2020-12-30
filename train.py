@@ -124,10 +124,11 @@ def train(opt):
         input_sizes = {opt.compound_coef: opt.force_input_size}
 
     train_ids, val_ids = train_val_split(opt, params)
-    if len(train_ids) == 0 or len(val_ids) == 0:
+    if len(train_ids) == 0 and len(val_ids) == 0:
         return
 
     augmentations = transforms.Compose([
+        Resizer(input_sizes[opt.compound_coef]),
         RandomSizedCrop((0.1, 1.0), input_sizes[opt.compound_coef], input_sizes[opt.compound_coef]),
         HorizontalFlip(p=0.5),
         VerticalFlip(p=0.5),
