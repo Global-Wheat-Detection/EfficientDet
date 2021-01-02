@@ -129,12 +129,3 @@ dmypy.json
 .pyre/
 .idea/
 weights/
-
-# Self defined
-.vscode/
-datasets/
-ed/
-logs/
-models
-test
-*.zip
