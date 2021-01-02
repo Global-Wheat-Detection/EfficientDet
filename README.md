@@ -16,6 +16,7 @@ pip install -r requirements.txt
 sh train.sh
 ```
 
+5. If you want to skip training phase, download our trained model [here](https://drive.google.com/drive/folders/1NZid0yEcbdecosLEpsItL17u2VLCEeet?usp=sharing), and run **test.py**
 
 ## Data Description
 
