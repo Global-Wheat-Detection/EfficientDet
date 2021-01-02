@@ -42,7 +42,7 @@ input_size = input_sizes[compound_coef] if force_input_size is None else force_i
 
 model = EfficientDetBackbone(compound_coef=compound_coef, num_classes=len(obj_list),
                              ratios=anchor_ratios, scales=anchor_scales)
-model.load_state_dict(torch.load('logs/global-wheat-detection/efficientdet-d7-1/efficientdet-d7_98_26500.pth', map_location='cpu'))
+model.load_state_dict(torch.load('submission.pth', map_location='cpu'))
 model.requires_grad_(False)
 model.eval()
 
@@ -91,7 +91,7 @@ for name in os.listdir(root):
                 cv2.waitKey(0)
 
             if imwrite:
-                cv2.imwrite(f'test/{name}_98.jpg', imgs[i])
+                cv2.imwrite(f'test/{name}.jpg', imgs[i])
 
 
     out = invert_affine(framed_metas, out)
